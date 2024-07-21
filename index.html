@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mapa Interactivo de Puno, Perú</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.1.3/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/leaflet.css" />
+    <style>
+        #map {
+            width: 100%;
+            height: 600px;
+        }
+        .info-panel {
+            max-height: 600px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#"><i class="fas fa-map-marked-alt"></i> Mapa de Puno</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link active" aria-current="page" href="#"><i class="fas fa-home"></i> Inicio</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" data-bs-toggle="modal" data-bs-target="#aboutModal"><i class="fas fa-info-circle"></i> Acerca de</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid mt-3">
+        <div class="row">
+            <div class="col-md-9">
+                <div id="map"></div>
+            </div>
+            <div class="col-md-3">
+                <div class="info-panel">
+                    <h4><i class="fas fa-layer-group"></i> Capas</h4>
+                    <div id="layer-controls">
+                        <!-- Layer controls will be dynamically added here -->
+                    </div>
+                    <hr>
+                    <h4><i class="fas fa-info-circle"></i> Información</h4>
+                    <div id="info-box">
+                        Selecciona un lugar en el mapa para ver más información.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal fade" id="aboutModal" tabindex="-1" aria-labelledby="aboutModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="aboutModalLabel">Acerca de Mapa de Puno</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Esta aplicación muestra un mapa interactivo de Puno, Perú, con información sobre restaurantes, estaciones de gas, terminales, colegios y parques.</p>
+                    <p>Desarrollado con Leaflet, Bootstrap y Font Awesome.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.1.3/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/leaflet.js"></script>
+    <script>
+        // Crear un mapa centrado en Puno, Perú
+        var map = L.map('map').setView([-15.8402, -70.0219], 14);
+
+        // Añadir la capa base del mapa
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+
+        // Definir los tipos de lugares y sus iconos
+        var placeTypes = {
+            'Restaurantes': { icon: 'fa-utensils', color: 'red' },
+            'Estaciones de Gas': { icon: 'fa-gas-pump', color: 'green' },
+            'Terminales': { icon: 'fa-bus', color: 'blue' },
+            'Colegios': { icon: 'fa-school', color: 'purple' },
+            'Parques': { icon: 'fa-tree', color: 'darkgreen' }
+        };
+
+        // Función para crear un icono personalizado
+        function createCustomIcon(icon, color) {
+            return L.divIcon({
+                html: `<i class="fas ${icon}" style="color: ${color};"></i>`,
+                iconSize: [20, 20],
+                className: 'custom-div-icon'
+            });
+        }
+
+        // Función para cargar datos GeoJSON y añadir al mapa
+        function addGeoJsonLayer(url, layerGroup, placeType) {
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    var layer = L.geoJson(data, {
+                        pointToLayer: function(feature, latlng) {
+                            return L.marker(latlng, { icon: createCustomIcon(placeTypes[placeType].icon, placeTypes[placeType].color) });
+                        },
+                        onEachFeature: function (feature, layer) {
+                            layer.bindPopup(placeType + ': ' + feature.properties.name);
+                            layer.on('click', function() {
+                                document.getElementById('info-box').innerHTML = `
+                                    <h5>${feature.properties.name}</h5>
+                                    <p><strong>Tipo:</strong> ${placeType}</p>
+                                    <p><strong>Dirección:</strong> ${feature.properties.address || 'No disponible'}</p>
+                                `;
+                            });
+                        }
+                    });
+                    layerGroup.addLayer(layer);
+                })
+                .catch(error => {
+                    console.error('Error al cargar los datos GeoJSON:', error);
+                });
+        }
+
+        // Crear grupos de capas y cargar datos
+        var layerGroups = {};
+        var overlays = {};
+
+        Object.keys(placeTypes).forEach(placeType => {
+            layerGroups[placeType] = L.layerGroup().addTo(map);
+            overlays[placeType] = layerGroups[placeType];
+            
+            // Convertir el nombre del tipo de lugar a un formato adecuado para el nombre de archivo
+            var fileName = placeType.toLowerCase().replace(/ /g, '_').replace(/á/g, 'a').replace(/é/g, 'e').replace(/í/g, 'i').replace(/ó/g, 'o').replace(/ú/g, 'u');
+            addGeoJsonLayer(`${fileName}_puno.geojson`, layerGroups[placeType], placeType);
+
+            // Añadir controles de capa dinámicamente
+            var checkbox = document.createElement('div');
+            checkbox.className = 'form-check';
+            checkbox.innerHTML = `
+                <input class="form-check-input" type="checkbox" value="" id="${placeType}" checked>
+                <label class="form-check-label" for="${placeType}">
+                    <i class="fas ${placeTypes[placeType].icon}" style="color: ${placeTypes[placeType].color};"></i> ${placeType}
+                </label>
+            `;
+            document.getElementById('layer-controls').appendChild(checkbox);
+
+            // Añadir evento de cambio al checkbox
+            checkbox.querySelector('input').addEventListener('change', function() {
+                if (this.checked) {
+                    map.addLayer(layerGroups[placeType]);
+                } else {
+                    map.removeLayer(layerGroups[placeType]);
+                }
+            });
+        });
+
+        // Añadir control de capas
+        L.control.layers(null, overlays).addTo(map);
+    </script>
+</body>
+</html>
